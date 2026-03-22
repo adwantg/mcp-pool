@@ -31,5 +31,6 @@ htmlcov/
 .DS_Store
 Thumbs.db
 requirements+feature.md
+enhancements.md
 skills/*
 release.sh
