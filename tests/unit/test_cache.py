@@ -68,9 +68,10 @@ class TestToolCacheGetOrFetch:
     async def test_fetch_on_miss(self):
         cache = ToolCache(ttl_s=60.0)
         session = _FakeSession(tools="fresh_tools")
-        result, hit = await cache.get_or_fetch(session)
-        assert result == "fresh_tools"
-        assert hit is False
+        result = await cache.get_or_fetch(session)
+        assert result.value == "fresh_tools"
+        assert result.hit is False
+        assert result.refreshed is True
         assert session.call_count == 1
 
     @pytest.mark.asyncio
@@ -78,9 +79,9 @@ class TestToolCacheGetOrFetch:
         cache = ToolCache(ttl_s=60.0)
         cache.set("cached_tools")
         session = _FakeSession()
-        result, hit = await cache.get_or_fetch(session)
-        assert result == "cached_tools"
-        assert hit is True
+        result = await cache.get_or_fetch(session)
+        assert result.value == "cached_tools"
+        assert result.hit is True
         assert session.call_count == 0
 
     @pytest.mark.asyncio
@@ -102,10 +103,10 @@ class TestToolCacheGetOrFetch:
             cache.get_or_fetch(session),
             cache.get_or_fetch(session),
         )
-        # At most 1 fetch should happen due to double-check locking
-        assert fetch_count <= 2  # Relaxed: first may fetch, rest get lock
-        for data, _ in results:
-            assert data == "tools"
+        assert fetch_count == 1
+        assert sum(1 for result in results if result.waited) >= 1
+        for result in results:
+            assert result.value == "tools"
 
 
 class TestToolCacheProperties:

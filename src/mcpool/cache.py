@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import asyncio
 import time
+from collections.abc import Awaitable, Callable
+from dataclasses import dataclass
 from typing import Any, Protocol
 
 
@@ -15,6 +17,19 @@ class _SessionLike(Protocol):
     """Minimal session interface needed by the cache."""
 
     async def list_tools(self) -> Any: ...
+
+
+FetchCallable = Callable[[], Awaitable[Any]]
+
+
+@dataclass(frozen=True)
+class ToolCacheResult:
+    """Structured result for a cache fetch attempt."""
+
+    value: Any
+    hit: bool
+    refreshed: bool
+    waited: bool
 
 
 class ToolCache:
@@ -58,22 +73,32 @@ class ToolCache:
         self._data = None
         self._fetched_at = 0.0
 
-    async def get_or_fetch(self, session: _SessionLike) -> Any:
+    async def get_or_fetch(self, fetcher: _SessionLike | FetchCallable) -> ToolCacheResult:
         """
-        Return cached tools, or fetch from *session* if stale.
+        Return cached tools, or fetch via *fetcher* if stale.
 
-        Returns a tuple ``(tools, was_cache_hit)``.
+        ``fetcher`` may be a session-like object exposing ``list_tools()``
+        or any async callable that returns the tool list.
         """
         cached = self.get()
         if cached is not None:
-            return cached, True
+            return ToolCacheResult(value=cached, hit=True, refreshed=False, waited=False)
 
+        waited = self._lock.locked()
         async with self._lock:
             # Double-check after acquiring the lock.
             cached = self.get()
             if cached is not None:
-                return cached, True
+                return ToolCacheResult(
+                    value=cached,
+                    hit=True,
+                    refreshed=False,
+                    waited=waited,
+                )
 
-            tools = await session.list_tools()
+            if hasattr(fetcher, "list_tools"):
+                tools = await fetcher.list_tools()
+            else:
+                tools = await fetcher()
             self.set(tools)
-            return tools, False
+            return ToolCacheResult(value=tools, hit=False, refreshed=True, waited=waited)

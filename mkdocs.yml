@@ -1,0 +1,18 @@
+site_name: mcpool
+site_description: Async connection pool for MCP client sessions
+repo_url: https://github.com/adwantg/mcp-pool
+theme:
+  name: material
+nav:
+  - Home: index.md
+  - Quickstart: quickstart.md
+  - Configuration: configuration.md
+  - Migration: migration.md
+  - Architecture: architecture.md
+  - Deployment Patterns: deployment-patterns.md
+  - Performance Tuning: performance.md
+markdown_extensions:
+  - admonition
+  - tables
+  - toc:
+      permalink: true

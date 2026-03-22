@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "mcp-pool"
-version = "0.1.0"
+version = "0.2.0"
 description = "Async connection pool for Model Context Protocol (MCP) client sessions — keep sessions warm, reuse across requests, auto-reconnect on failure."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -32,6 +32,13 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+otel = [
+    "opentelemetry-api>=1.30.0",
+]
+docs = [
+    "mkdocs>=1.6.0",
+    "mkdocs-material>=9.6.0",
+]
 dev = [
     "build>=1.2.0",
     "twine>=6.0.0",
@@ -42,6 +49,9 @@ dev = [
     "pytest-cov>=6.0.0",
     "pytest-asyncio>=0.24.0",
     "hypothesis>=6.119.0",
+    "opentelemetry-api>=1.30.0",
+    "mkdocs>=1.6.0",
+    "mkdocs-material>=9.6.0",
     "pip-audit>=2.8.0",
     "bigocheck>=1.0.0",
 ]
@@ -85,6 +95,10 @@ testpaths = ["tests"]
 addopts = "-q --strict-markers --strict-config --cov=mcpool --cov-report=term-missing"
 xfail_strict = true
 asyncio_mode = "auto"
+markers = [
+    "benchmark: regression-guarded benchmark tests",
+    "fuzz: Hypothesis/property-based pool invariant tests",
+]
 
 [tool.coverage.run]
 source = ["mcpool"]

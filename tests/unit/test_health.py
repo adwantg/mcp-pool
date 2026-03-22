@@ -27,7 +27,7 @@ class TestHealthCheckerBasics:
         checker = HealthChecker(
             interval_s=0,
             get_idle_sessions=lambda: [],
-            remove_session=lambda ps: None,
+            remove_session=AsyncMock(),
             replace_session=AsyncMock(),
             metrics=metrics,
         )
@@ -41,7 +41,7 @@ class TestHealthCheckerBasics:
         checker = HealthChecker(
             interval_s=0.05,
             get_idle_sessions=lambda: [],
-            remove_session=lambda ps: None,
+            remove_session=AsyncMock(),
             replace_session=AsyncMock(),
             metrics=metrics,
         )
@@ -64,7 +64,7 @@ class TestHealthCheckerDetection:
         checker = HealthChecker(
             interval_s=0.05,
             get_idle_sessions=lambda: [dead],
-            remove_session=lambda ps: removed.append(ps),
+            remove_session=AsyncMock(side_effect=lambda ps: removed.append(ps)),
             replace_session=replaced,
             metrics=metrics,
         )
@@ -88,7 +88,7 @@ class TestHealthCheckerDetection:
         checker = HealthChecker(
             interval_s=0.05,
             get_idle_sessions=lambda: [healthy],
-            remove_session=lambda ps: removed.append(ps),
+            remove_session=AsyncMock(side_effect=lambda ps: removed.append(ps)),
             replace_session=AsyncMock(),
             metrics=metrics,
         )
@@ -100,3 +100,29 @@ class TestHealthCheckerDetection:
         assert len(removed) == 0
         assert metrics.health_check_count >= 1
         assert metrics.health_check_failures == 0
+
+    @pytest.mark.asyncio
+    async def test_recycles_one_near_expiry_session_per_sweep(self):
+        metrics = PoolMetrics()
+        old_a = _make_pooled()
+        old_b = _make_pooled()
+        old_a.created_at -= 100
+        old_b.created_at -= 100
+
+        recycled: list[str] = []
+        checker = HealthChecker(
+            interval_s=0.05,
+            get_idle_sessions=lambda: [old_a, old_b],
+            remove_session=AsyncMock(),
+            replace_session=AsyncMock(),
+            recycle_session=AsyncMock(side_effect=lambda ps: recycled.append(ps.session_id)),
+            should_recycle=lambda ps: True,
+            metrics=metrics,
+        )
+
+        await checker.start()
+        await asyncio.sleep(0.08)
+        await checker.stop()
+
+        assert recycled == [old_a.session_id]
+        assert metrics.recycled_count == 1

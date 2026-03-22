@@ -17,6 +17,7 @@ class TestPoolConfigDefaults:
         assert cfg.transport == "streamable_http"
         assert cfg.min_sessions == 2
         assert cfg.max_sessions == 10
+        assert cfg.effective_borrow_timeout_s == cfg.connect_timeout_s
 
     def test_valid_stdio_config(self):
         cfg = PoolConfig(endpoint="uv", transport="stdio", stdio_args=["run", "server"])
@@ -61,6 +62,26 @@ class TestPoolConfigValidation:
         cfg = PoolConfig(endpoint="http://x", min_sessions=5, max_sessions=5)
         assert cfg.min_sessions == cfg.max_sessions == 5
 
+    def test_invalid_recycle_window(self):
+        with pytest.raises(ValueError, match="recycle_window_s"):
+            PoolConfig(
+                endpoint="http://x",
+                max_session_lifetime_s=10,
+                recycle_window_s=10,
+            )
+
+    def test_invalid_borrow_timeout(self):
+        with pytest.raises(ValueError, match="borrow_timeout_s"):
+            PoolConfig(endpoint="http://x", borrow_timeout_s=-1)
+
+    def test_invalid_retry_count(self):
+        with pytest.raises(ValueError, match="retry_count"):
+            PoolConfig(endpoint="http://x", retry_count=-1)
+
+    def test_invalid_failure_threshold(self):
+        with pytest.raises(ValueError, match="failure_threshold"):
+            PoolConfig(endpoint="http://x", failure_threshold=0)
+
 
 class TestPoolConfigEdgeCases:
     """Edge-case testing for config fields."""
@@ -86,8 +107,11 @@ class TestPoolConfigEdgeCases:
             health_check_interval_s=0,
             tool_cache_ttl_s=0,
             max_session_lifetime_s=0,
+            recycle_window_s=0,
             connect_timeout_s=1.0,
+            borrow_timeout_s=0.5,
             drain_timeout_s=1.0,
         )
         assert cfg.health_check_interval_s == 0
         assert cfg.tool_cache_ttl_s == 0
+        assert cfg.borrow_timeout_s == 0.5

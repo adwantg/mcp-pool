@@ -23,3 +23,7 @@ class SessionError(PoolError):
 
 class HealthCheckError(PoolError):
     """Raised when a health check detects an unrecoverable problem."""
+
+
+class CircuitOpenError(PoolError):
+    """Raised when session creation is blocked by the circuit breaker."""

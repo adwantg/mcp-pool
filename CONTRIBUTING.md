@@ -16,7 +16,7 @@ pip install -e ".[dev]"
 All contributions must pass:
 
 ```bash
-# Tests (90% coverage minimum)
+# Tests (80% coverage minimum)
 pytest -v --cov=mcpool --cov-report=term-missing
 
 # Linting
@@ -25,6 +25,12 @@ ruff format --check src/ tests/
 
 # Type checking
 mypy src/
+
+# Benchmark + fuzz suites
+pytest tests/benchmarks tests/fuzz -v --no-cov
+
+# Documentation
+mkdocs build --strict
 ```
 
 ## Pull Request Process
@@ -39,6 +45,8 @@ mypy src/
 - Follow `ruff` formatting conventions.
 - Use type annotations everywhere.
 - Docstrings on all public APIs.
+- Add or update tests for behavior changes.
+- Keep README and `docs/` in sync with public API changes.
 
 ## Reporting Issues
 

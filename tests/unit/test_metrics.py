@@ -45,9 +45,11 @@ class TestPoolMetricsSnapshot:
         snap = metrics.snapshot()
         expected_keys = {
             "active", "idle", "total", "borrow_count", "avg_borrow_wait_s",
-            "return_count", "cache_hits", "cache_misses", "cache_hit_rate",
-            "reconnect_count", "health_check_count", "health_check_failures",
-            "sessions_created", "sessions_destroyed", "errors", "uptime_s",
+            "return_count", "cache_hits", "cache_misses", "cache_refresh_count",
+            "cache_waiters", "cache_hit_rate", "reconnect_count", "retry_attempts",
+            "health_check_count", "health_check_failures", "recycled_count",
+            "sessions_created", "sessions_destroyed", "errors", "circuit_state",
+            "uptime_s",
         }
         assert set(snap.keys()) == expected_keys
 

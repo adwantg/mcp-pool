@@ -26,6 +26,8 @@ env/
 .coverage
 htmlcov/
 .mypy_cache/
+.hypothesis/
+site/
 
 # OS
 .DS_Store

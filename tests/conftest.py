@@ -97,7 +97,9 @@ def default_config() -> PoolConfig:
         health_check_interval_s=0,  # Disable for unit tests
         tool_cache_ttl_s=60.0,
         max_session_lifetime_s=3600.0,
+        recycle_window_s=30.0,
         connect_timeout_s=5.0,
+        borrow_timeout_s=5.0,
         drain_timeout_s=5.0,
     )
 

@@ -36,15 +36,23 @@ class HealthChecker:
         self,
         interval_s: float,
         get_idle_sessions: Callable[[], list[PooledSession]],
-        remove_session: Callable[[PooledSession], None],
+        remove_session: Callable[[PooledSession], Coroutine[Any, Any, None]],
         replace_session: Callable[[], Coroutine[Any, Any, None]],
         metrics: PoolMetrics,
+        recycle_session: Callable[[PooledSession], Coroutine[Any, Any, None]] | None = None,
+        should_recycle: Callable[[PooledSession], bool] | None = None,
+        on_health_check_failed: (
+            Callable[[PooledSession, Exception], Coroutine[Any, Any, None]] | None
+        ) = None,
     ) -> None:
         self._interval_s = interval_s
         self._get_idle = get_idle_sessions
         self._remove = remove_session
         self._replace = replace_session
         self._metrics = metrics
+        self._recycle_session = recycle_session
+        self._should_recycle = should_recycle
+        self._on_health_check_failed = on_health_check_failed
         self._task: asyncio.Task[None] | None = None
         self._stopped = asyncio.Event()
 
@@ -78,7 +86,19 @@ class HealthChecker:
     async def _check_all(self) -> None:
         """Ping every idle session; remove dead ones."""
         idle = self._get_idle()
+        recycled_this_sweep = False
         for ps in idle:
+            if (
+                not recycled_this_sweep
+                and self._should_recycle is not None
+                and self._recycle_session is not None
+                and self._should_recycle(ps)
+            ):
+                recycled_this_sweep = True
+                self._metrics.recycled_count += 1
+                await self._recycle_session(ps)
+                continue
+
             self._metrics.health_check_count += 1
             try:
                 # Use list_tools as a lightweight ping — the result
@@ -87,12 +107,14 @@ class HealthChecker:
                     ps.session.list_tools(),
                     timeout=5.0,
                 )
-            except Exception:
+            except Exception as exc:
                 logger.warning(
                     "Health check failed for session %s, removing", ps.session_id
                 )
                 self._metrics.health_check_failures += 1
-                self._remove(ps)
+                if self._on_health_check_failed is not None:
+                    await self._on_health_check_failed(ps, exc)
+                await self._remove(ps)
                 try:
                     await self._replace()
                 except Exception:

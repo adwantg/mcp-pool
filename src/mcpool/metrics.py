@@ -25,12 +25,17 @@ class PoolMetrics:
     return_count: int = 0
     cache_hits: int = 0
     cache_misses: int = 0
+    cache_refresh_count: int = 0
+    cache_waiters: int = 0
     reconnect_count: int = 0
+    retry_attempts: int = 0
     health_check_count: int = 0
     health_check_failures: int = 0
+    recycled_count: int = 0
     sessions_created: int = 0
     sessions_destroyed: int = 0
     errors: int = 0
+    circuit_state: str = "closed"
     _start_time: float = field(default_factory=time.monotonic)
 
     @property
@@ -64,13 +69,18 @@ class PoolMetrics:
             "return_count": self.return_count,
             "cache_hits": self.cache_hits,
             "cache_misses": self.cache_misses,
+            "cache_refresh_count": self.cache_refresh_count,
+            "cache_waiters": self.cache_waiters,
             "cache_hit_rate": round(self.cache_hit_rate, 4),
             "reconnect_count": self.reconnect_count,
+            "retry_attempts": self.retry_attempts,
             "health_check_count": self.health_check_count,
             "health_check_failures": self.health_check_failures,
+            "recycled_count": self.recycled_count,
             "sessions_created": self.sessions_created,
             "sessions_destroyed": self.sessions_destroyed,
             "errors": self.errors,
+            "circuit_state": self.circuit_state,
             "uptime_s": round(self.uptime_s, 2),
         }
 
@@ -84,10 +94,15 @@ class PoolMetrics:
         self.return_count = 0
         self.cache_hits = 0
         self.cache_misses = 0
+        self.cache_refresh_count = 0
+        self.cache_waiters = 0
         self.reconnect_count = 0
+        self.retry_attempts = 0
         self.health_check_count = 0
         self.health_check_failures = 0
+        self.recycled_count = 0
         self.sessions_created = 0
         self.sessions_destroyed = 0
         self.errors = 0
+        self.circuit_state = "closed"
         self._start_time = time.monotonic()
