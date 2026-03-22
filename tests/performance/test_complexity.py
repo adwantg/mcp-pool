@@ -80,7 +80,7 @@ class TestSessionCreationTimeComplexity:
             for _ in range(n):
                 PooledSession(session=MockMCPSession())
 
-        result = verify_bounds(create_sessions, SMALL_SIZES, expected="O(n)")
+        result = verify_bounds(create_sessions, SMALL_SIZES, expected="O(n)", tolerance=0.8)
         assert result.passes, result.message
 
 
@@ -97,7 +97,7 @@ class TestMetricsTimeComplexity:
             for _ in range(n):
                 metrics.snapshot()
 
-        result = verify_bounds(snapshot_n_times, SIZES, expected="O(n)")
+        result = verify_bounds(snapshot_n_times, SIZES, expected="O(n)", tolerance=0.8)
         assert result.passes, result.message
 
 

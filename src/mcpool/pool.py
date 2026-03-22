@@ -521,18 +521,19 @@ class MCPPool:
 
     async def _create_http_session(self) -> PooledSession:
         """Create a session using streamable HTTP transport."""
-        from mcp.client.streamable_http import (  # type: ignore[import-not-found]  # noqa: I001
-            streamable_http_client,
-        )
-        from mcp import ClientSession  # type: ignore[import-not-found]
+        from mcp import ClientSession
+        from mcp.client.streamable_http import streamable_http_client
 
         headers = dict(self._config.mcp_headers)
         if self._config.auth:
             headers["Authorization"] = f"Bearer {self._config.auth}"
 
+        import httpx
+        http_client = httpx.AsyncClient(headers=headers)
+
         transport_ctx = streamable_http_client(
             self._config.endpoint,
-            headers=headers,
+            http_client=http_client,
         )
         read_stream, write_stream, _ = await transport_ctx.__aenter__()
 
@@ -552,8 +553,8 @@ class MCPPool:
 
     async def _create_stdio_session(self) -> PooledSession:
         """Create a session using stdio transport."""
-        from mcp.client.stdio import stdio_client  # type: ignore[import-not-found]  # noqa: I001
         from mcp import ClientSession, StdioServerParameters
+        from mcp.client.stdio import stdio_client
 
         server_params = StdioServerParameters(
             command=self._config.endpoint,
