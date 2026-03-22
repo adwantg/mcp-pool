@@ -3,7 +3,7 @@ message: "If you use this software, please cite it as below."
 type: software
 title: "mcpool: Async Connection Pool for MCP Sessions"
 version: "0.1.0"
-date-released: "2025-03-22"
+date-released: "2026-03-22"
 url: "https://github.com/adwantg/mcp-pool"
 repository-code: "https://github.com/adwantg/mcp-pool"
 license: MIT
