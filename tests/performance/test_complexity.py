@@ -1,0 +1,220 @@
+# Author: gadwant
+"""
+Performance / complexity tests using bigocheck.
+
+Validates that core operations have the expected TIME and SPACE complexity
+to ensure the pool doesn't degrade at scale.
+
+Uses bigocheck's verify_bounds() for imperative tests and
+@assert_complexity() decorator for declarative complexity contracts.
+"""
+from __future__ import annotations
+
+from collections import deque
+
+from bigocheck import assert_complexity, verify_bounds
+from tests.conftest import MockMCPSession
+
+from mcpool.cache import ToolCache
+from mcpool.metrics import PoolMetrics
+from mcpool.session import PooledSession
+
+# ─── Input sizes ───
+
+SIZES = [100, 500, 1000, 5000, 10000]
+SMALL_SIZES = [100, 500, 1000, 2000]
+
+
+# ═══════════════════════════════════════════════════════════════
+# TIME COMPLEXITY TESTS
+# ═══════════════════════════════════════════════════════════════
+
+
+class TestToolCacheTimeComplexity:
+    """Tool cache get/set should be O(1) per operation."""
+
+    def test_cache_set_is_constant_time(self):
+        """N set operations should be O(n) total => O(1) per op."""
+
+        def cache_set_n_times(n: int) -> None:
+            cache = ToolCache(ttl_s=3600)
+            for i in range(n):
+                cache.set(f"tools_{i}")
+
+        result = verify_bounds(cache_set_n_times, SIZES, expected="O(n)")
+        assert result.passes, result.message
+
+    def test_cache_get_is_constant_time(self):
+        """N get operations should be O(n) total => O(1) per op."""
+
+        def cache_get_n_times(n: int) -> None:
+            cache = ToolCache(ttl_s=3600)
+            cache.set("tools")
+            for _ in range(n):
+                cache.get()
+
+        result = verify_bounds(cache_get_n_times, SIZES, expected="O(n)")
+        assert result.passes, result.message
+
+    def test_cache_invalidate_is_constant_time(self):
+        """N invalidate operations should be O(n) total => O(1) per op."""
+
+        def cache_invalidate_n_times(n: int) -> None:
+            cache = ToolCache(ttl_s=3600)
+            for _ in range(n):
+                cache.set("data")
+                cache.invalidate()
+
+        result = verify_bounds(cache_invalidate_n_times, SIZES, expected="O(n)")
+        assert result.passes, result.message
+
+
+class TestSessionCreationTimeComplexity:
+    """Session creation should scale linearly with count."""
+
+    def test_pooled_session_creation_is_linear(self):
+        """Creating n PooledSession objects should be O(n)."""
+
+        def create_sessions(n: int) -> None:
+            for _ in range(n):
+                PooledSession(session=MockMCPSession())
+
+        result = verify_bounds(create_sessions, SMALL_SIZES, expected="O(n)")
+        assert result.passes, result.message
+
+
+class TestMetricsTimeComplexity:
+    """Metrics snapshot should be O(1) per call."""
+
+    def test_snapshot_is_constant_time(self):
+        """N snapshot calls should be O(n) total."""
+
+        def snapshot_n_times(n: int) -> None:
+            metrics = PoolMetrics()
+            metrics.borrow_count = n
+            metrics.cache_hits = n
+            for _ in range(n):
+                metrics.snapshot()
+
+        result = verify_bounds(snapshot_n_times, SIZES, expected="O(n)")
+        assert result.passes, result.message
+
+
+class TestSessionMarkTimeComplexity:
+    """mark_borrowed / mark_returned should be O(1)."""
+
+    def test_mark_borrowed_is_constant(self):
+        def mark_n_times(n: int) -> None:
+            ps = PooledSession(session=MockMCPSession())
+            for _ in range(n):
+                ps.mark_borrowed()
+
+        result = verify_bounds(mark_n_times, SIZES, expected="O(n)")
+        assert result.passes, result.message
+
+    def test_mark_returned_is_constant(self):
+        def mark_n_times(n: int) -> None:
+            ps = PooledSession(session=MockMCPSession())
+            for _ in range(n):
+                ps.mark_returned()
+
+        result = verify_bounds(mark_n_times, SIZES, expected="O(n)")
+        assert result.passes, result.message
+
+
+class TestDequeOperationsTimeComplexity:
+    """Pool uses deque internally — verify O(1) append/popleft."""
+
+    def test_deque_append_popleft_is_constant(self):
+        """N append + popleft cycles should be O(n) total."""
+
+        def deque_ops(n: int) -> None:
+            q: deque[PooledSession] = deque()
+            sessions = [PooledSession(session=MockMCPSession()) for _ in range(min(n, 50))]
+            for i in range(n):
+                ps = sessions[i % len(sessions)]
+                q.append(ps)
+                q.popleft()
+
+        result = verify_bounds(deque_ops, SIZES, expected="O(n)", tolerance=0.6)
+        assert result.passes, result.message
+
+
+# ═══════════════════════════════════════════════════════════════
+# SPACE COMPLEXITY TESTS
+# ═══════════════════════════════════════════════════════════════
+
+
+class TestSessionSpaceComplexity:
+    """Pool data structures should have O(n) space complexity."""
+
+    def test_session_list_space_is_linear(self):
+        """Storing n sessions should use O(n) memory."""
+
+        def create_session_list(n: int) -> None:
+            sessions = []
+            for _ in range(n):
+                sessions.append(PooledSession(session=MockMCPSession()))
+
+        result = verify_bounds(
+            create_session_list, SMALL_SIZES, expected="O(n)", memory=True
+        )
+        assert result.passes, result.message
+
+    def test_deque_space_is_linear(self):
+        """Deque holding n sessions should use O(n) memory."""
+
+        def create_deque(n: int) -> None:
+            q: deque[PooledSession] = deque()
+            for _ in range(n):
+                q.append(PooledSession(session=MockMCPSession()))
+
+        result = verify_bounds(
+            create_deque, SMALL_SIZES, expected="O(n)", memory=True
+        )
+        assert result.passes, result.message
+
+    def test_metrics_snapshot_space_is_constant(self):
+        """Snapshot dict size should not grow with counter values."""
+
+        def snapshot_with_large_counters(n: int) -> None:
+            metrics = PoolMetrics()
+            metrics.borrow_count = n
+            metrics.cache_hits = n
+            metrics.sessions_created = n
+            snapshot = metrics.snapshot()  # noqa: F841
+
+        result = verify_bounds(
+            snapshot_with_large_counters, SIZES, expected="O(1)", memory=True
+        )
+        assert result.passes, result.message
+
+
+# ═══════════════════════════════════════════════════════════════
+# DECORATOR-STYLE COMPLEXITY CONTRACTS (using @assert_complexity)
+# ═══════════════════════════════════════════════════════════════
+
+
+class TestDecoratorComplexityContracts:
+    """Use bigocheck @assert_complexity decorator for declarative contracts."""
+
+    def test_linear_session_creation_contract(self):
+        """Declarative contract: session creation is O(n)."""
+
+        @assert_complexity("O(n)", sizes=SMALL_SIZES)
+        def create_n_sessions(n: int) -> None:
+            for _ in range(n):
+                PooledSession(session=MockMCPSession())
+
+        create_n_sessions(100)  # First call triggers benchmark
+
+    def test_linear_cache_set_contract(self):
+        """Declarative contract: cache set is O(n) for n calls."""
+
+        @assert_complexity("O(n)", sizes=SIZES)
+        def set_cache_n_times(n: int) -> None:
+            cache = ToolCache(ttl_s=3600)
+            for i in range(n):
+                cache.set(f"val_{i}")
+
+        set_cache_n_times(100)  # First call triggers benchmark
