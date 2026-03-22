@@ -1,0 +1,95 @@
+# Author: gadwant
+[build-system]
+requires = ["hatchling>=1.27.0"]
+build-backend = "hatchling.build"
+
+[project]
+name = "mcp-pool"
+version = "0.1.0"
+description = "Async connection pool for Model Context Protocol (MCP) client sessions — keep sessions warm, reuse across requests, auto-reconnect on failure."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Goutam Adwant" }]
+keywords = ["mcp", "model-context-protocol", "connection-pool", "session-pool", "async", "agent", "llm"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Libraries",
+    "Framework :: AsyncIO",
+    "Typing :: Typed",
+]
+dependencies = [
+    "mcp>=1.2.0",
+    "anyio>=4.0.0",
+    "pydantic>=2.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "build>=1.2.0",
+    "twine>=6.0.0",
+    "pre-commit>=4.0.0",
+    "ruff>=0.8.0",
+    "mypy>=1.13.0",
+    "pytest>=8.3.0",
+    "pytest-cov>=6.0.0",
+    "pytest-asyncio>=0.24.0",
+    "hypothesis>=6.119.0",
+    "pip-audit>=2.8.0",
+    "bigocheck>=1.0.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/adwantg/mcp-pool"
+Repository = "https://github.com/adwantg/mcp-pool"
+Issues = "https://github.com/adwantg/mcp-pool/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/mcpool"]
+core-metadata-version = "2.3"
+
+[tool.hatch.build.targets.sdist]
+core-metadata-version = "2.3"
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "C4", "RUF"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.mypy]
+python_version = "3.10"
+strict = true
+warn_unused_configs = true
+mypy_path = ["src"]
+
+[[tool.mypy.overrides]]
+module = ["tests.*"]
+disallow_untyped_defs = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q --strict-markers --strict-config --cov=mcpool --cov-report=term-missing"
+xfail_strict = true
+asyncio_mode = "auto"
+
+[tool.coverage.run]
+source = ["mcpool"]
+
+[tool.coverage.report]
+fail_under = 80
+show_missing = true
+skip_covered = true
