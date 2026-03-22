@@ -47,6 +47,7 @@ mkdocs build --strict
 - Docstrings on all public APIs.
 - Add or update tests for behavior changes.
 - Keep README and `docs/` in sync with public API changes.
+- For Mermaid in published docs, use explicit `<div class="mermaid">...</div>` blocks so the site renders diagrams instead of showing fenced code.
 
 ## Reporting Issues
 
