@@ -100,6 +100,18 @@ class TestMetricsTimeComplexity:
         result = verify_bounds(snapshot_n_times, SIZES, expected="O(n)", tolerance=0.8)
         assert result.passes, result.message
 
+    def test_to_prometheus_is_constant_time(self):
+        """N to_prometheus() calls should be O(n) total => O(1) per op."""
+
+        def prometheus_n_times(n: int) -> None:
+            metrics = PoolMetrics()
+            metrics.borrow_count = n
+            for _ in range(n):
+                metrics.to_prometheus()
+
+        result = verify_bounds(prometheus_n_times, SIZES, expected="O(n)", tolerance=0.8)
+        assert result.passes, result.message
+
 
 class TestSessionMarkTimeComplexity:
     """mark_borrowed / mark_returned should be O(1)."""
@@ -138,6 +150,48 @@ class TestDequeOperationsTimeComplexity:
                 q.popleft()
 
         result = verify_bounds(deque_ops, SIZES, expected="O(n)", tolerance=0.6)
+        assert result.passes, result.message
+
+
+class TestAffinityMapTimeComplexity:
+    """Affinity map (dict) lookups should be O(1) per operation."""
+
+    def test_affinity_map_lookup_is_constant(self):
+        """N lookups in an affinity map should be O(n) total."""
+
+        def map_lookups(n: int) -> None:
+            affinity_map: dict[str, str] = {}
+            for i in range(min(n, 100)):
+                affinity_map[f"key-{i}"] = f"session-{i}"
+            for i in range(n):
+                _ = affinity_map.get(f"key-{i % 100}")
+
+        result = verify_bounds(map_lookups, SIZES, expected="O(n)", tolerance=0.5)
+        assert result.passes, result.message
+
+
+class TestDebugSnapshotTimeComplexity:
+    """debug_snapshot() should be O(n) where n is the number of sessions."""
+
+    def test_debug_snapshot_is_linear(self):
+        """Building debug snapshot for n sessions should be O(n)."""
+
+        def snapshot_n_sessions(n: int) -> None:
+            sessions = {f"id-{i}": PooledSession(session=MockMCPSession()) for i in range(n)}
+            active = set(list(sessions.keys())[:n // 2])
+            result = []
+            for ps in sessions.values():
+                state = "active" if ps.session_id in active else "idle"
+                result.append({
+                    "session_id": ps.session_id,
+                    "state": state,
+                    "age_s": round(ps.age_s, 2),
+                    "idle_s": round(ps.idle_s, 2),
+                    "borrow_count": ps.borrow_count,
+                    "affinity_key": ps.affinity_key,
+                })
+
+        result = verify_bounds(snapshot_n_sessions, SMALL_SIZES, expected="O(n)", tolerance=0.8)
         assert result.passes, result.message
 
 
@@ -197,6 +251,19 @@ class TestSessionSpaceComplexity:
         large_peak = self._peak_memory(snapshot_with_large_counters, 100000)
         assert large_peak <= (small_peak * 2)
 
+    def test_affinity_map_space_is_linear(self):
+        """Affinity map holding n entries should use O(n) memory."""
+
+        def create_affinity_map(n: int) -> None:
+            m: dict[str, str] = {}
+            for i in range(n):
+                m[f"key-{i}"] = f"session-{i}"
+
+        small_peak = self._peak_memory(create_affinity_map, 100)
+        large_peak = self._peak_memory(create_affinity_map, 2000)
+        assert large_peak > small_peak
+        assert large_peak < (small_peak * 40)
+
 
 # ═══════════════════════════════════════════════════════════════
 # DECORATOR-STYLE COMPLEXITY CONTRACTS (using @assert_complexity)
@@ -226,3 +293,14 @@ class TestDecoratorComplexityContracts:
                 cache.set(f"val_{i}")
 
         set_cache_n_times(100)  # First call triggers benchmark
+
+    def test_linear_affinity_map_contract(self):
+        """Declarative contract: affinity map lookups are O(n) for n ops."""
+
+        @assert_complexity("O(n)", sizes=SIZES)
+        def lookup_n_times(n: int) -> None:
+            m = {f"k-{i}": f"v-{i}" for i in range(100)}
+            for i in range(n):
+                m.get(f"k-{i % 100}")
+
+        lookup_n_times(100)

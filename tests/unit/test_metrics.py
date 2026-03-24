@@ -49,7 +49,7 @@ class TestPoolMetricsSnapshot:
             "cache_waiters", "cache_hit_rate", "reconnect_count", "retry_attempts",
             "health_check_count", "health_check_failures", "recycled_count",
             "sessions_created", "sessions_destroyed", "errors", "circuit_state",
-            "uptime_s",
+            "degraded", "uptime_s",
         }
         assert set(snap.keys()) == expected_keys
 
@@ -58,13 +58,36 @@ class TestPoolMetricsSnapshot:
         metrics.borrow_count = 999
         assert snap["borrow_count"] == 0
 
+    def test_snapshot_degraded_field(self, metrics: PoolMetrics):
+        assert metrics.snapshot()["degraded"] is False
+        metrics.degraded = True
+        assert metrics.snapshot()["degraded"] is True
+
 
 class TestPoolMetricsReset:
     def test_reset_clears_all(self, metrics: PoolMetrics):
         metrics.borrow_count = 42
         metrics.errors = 7
         metrics.cache_hits = 100
+        metrics.degraded = True
         metrics.reset()
         assert metrics.borrow_count == 0
         assert metrics.errors == 0
         assert metrics.cache_hits == 0
+        assert metrics.degraded is False
+
+
+class TestPoolMetricsPrometheus:
+    def test_to_prometheus_returns_dict(self, metrics: PoolMetrics):
+        prom = metrics.to_prometheus()
+        assert isinstance(prom, dict)
+        assert "mcpool_active_sessions" in prom
+        assert "mcpool_borrow_total" in prom
+        assert "mcpool_errors_total" in prom
+
+    def test_to_prometheus_values_match_snapshot(self, metrics: PoolMetrics):
+        metrics.borrow_count = 10
+        metrics.errors = 2
+        prom = metrics.to_prometheus()
+        assert prom["mcpool_borrow_total"] == 10
+        assert prom["mcpool_errors_total"] == 2

@@ -115,3 +115,42 @@ class TestPoolConfigEdgeCases:
         assert cfg.health_check_interval_s == 0
         assert cfg.tool_cache_ttl_s == 0
         assert cfg.borrow_timeout_s == 0.5
+
+
+class TestPoolConfigNewFields:
+    """Validation for v0.3.0 config additions."""
+
+    def test_transport_factory_skips_endpoint_validation(self):
+        async def my_factory(endpoint, headers):
+            pass
+        cfg = PoolConfig(endpoint="", transport_factory=my_factory)
+        assert cfg.transport_factory is not None
+
+    def test_auth_provider_config(self):
+        async def my_provider() -> str:
+            return "token"
+        cfg = PoolConfig(endpoint="http://x", auth_provider=my_provider)
+        assert cfg.auth_provider is not None
+
+    def test_graceful_degradation_default(self):
+        cfg = PoolConfig(endpoint="http://x")
+        assert cfg.graceful_degradation is False
+
+    def test_graceful_degradation_enabled(self):
+        cfg = PoolConfig(endpoint="http://x", graceful_degradation=True)
+        assert cfg.graceful_degradation is True
+
+    def test_all_new_fields_together(self):
+        async def factory(endpoint, headers):
+            pass
+        async def provider() -> str:
+            return "tk"
+        cfg = PoolConfig(
+            endpoint="http://x",
+            transport_factory=factory,
+            auth_provider=provider,
+            graceful_degradation=True,
+        )
+        assert cfg.transport_factory is not None
+        assert cfg.auth_provider is not None
+        assert cfg.graceful_degradation is True
