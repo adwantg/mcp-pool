@@ -2,6 +2,7 @@
 """
 Pool configuration.
 """
+
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
@@ -126,19 +127,13 @@ class PoolConfig:
         if self.retry_count < 0:
             raise ValueError(f"retry_count must be >= 0, got {self.retry_count}")
         if self.retry_base_delay_s < 0:
-            raise ValueError(
-                f"retry_base_delay_s must be >= 0, got {self.retry_base_delay_s}"
-            )
+            raise ValueError(f"retry_base_delay_s must be >= 0, got {self.retry_base_delay_s}")
         if self.retry_max_delay_s < self.retry_base_delay_s:
-            raise ValueError(
-                "retry_max_delay_s must be >= retry_base_delay_s"
-            )
+            raise ValueError("retry_max_delay_s must be >= retry_base_delay_s")
         if self.failure_threshold < 1:
             raise ValueError(f"failure_threshold must be >= 1, got {self.failure_threshold}")
         if self.recovery_timeout_s <= 0:
-            raise ValueError(
-                f"recovery_timeout_s must be > 0, got {self.recovery_timeout_s}"
-            )
+            raise ValueError(f"recovery_timeout_s must be > 0, got {self.recovery_timeout_s}")
         # Endpoint validation — skip when a custom transport_factory is supplied.
         if self.transport_factory is None:
             if self.transport == "streamable_http" and not self.endpoint:

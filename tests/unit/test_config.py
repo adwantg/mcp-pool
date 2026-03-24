@@ -2,6 +2,7 @@
 """
 Unit tests for PoolConfig.
 """
+
 from __future__ import annotations
 
 import pytest
@@ -123,12 +124,14 @@ class TestPoolConfigNewFields:
     def test_transport_factory_skips_endpoint_validation(self):
         async def my_factory(endpoint, headers):
             pass
+
         cfg = PoolConfig(endpoint="", transport_factory=my_factory)
         assert cfg.transport_factory is not None
 
     def test_auth_provider_config(self):
         async def my_provider() -> str:
             return "token"
+
         cfg = PoolConfig(endpoint="http://x", auth_provider=my_provider)
         assert cfg.auth_provider is not None
 
@@ -143,8 +146,10 @@ class TestPoolConfigNewFields:
     def test_all_new_fields_together(self):
         async def factory(endpoint, headers):
             pass
+
         async def provider() -> str:
             return "tk"
+
         cfg = PoolConfig(
             endpoint="http://x",
             transport_factory=factory,

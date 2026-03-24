@@ -2,9 +2,8 @@
 """
 Unit tests for graceful degradation.
 """
-from __future__ import annotations
 
-import asyncio
+from __future__ import annotations
 
 import pytest
 from tests.conftest import MockMCPSession

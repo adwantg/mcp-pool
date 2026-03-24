@@ -4,6 +4,7 @@ Tool-list caching layer.
 
 Caches the ``tools/list`` response to avoid redundant round-trips.
 """
+
 from __future__ import annotations
 
 import asyncio

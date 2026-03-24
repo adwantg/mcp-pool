@@ -2,6 +2,7 @@
 """
 Unit tests for pool.resize().
 """
+
 from __future__ import annotations
 
 import pytest

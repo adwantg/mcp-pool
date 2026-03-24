@@ -2,6 +2,7 @@
 """
 Regression-guarded microbenchmarks for core pool paths.
 """
+
 from __future__ import annotations
 
 import asyncio

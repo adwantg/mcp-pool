@@ -2,6 +2,7 @@
 """
 PooledSession — metadata wrapper around an MCP ClientSession.
 """
+
 from __future__ import annotations
 
 import time

@@ -2,6 +2,7 @@
 """
 Shared test fixtures for mcpool.
 """
+
 from __future__ import annotations
 
 import asyncio

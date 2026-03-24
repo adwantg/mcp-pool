@@ -2,9 +2,8 @@
 """
 Unit tests for session affinity routing.
 """
-from __future__ import annotations
 
-import asyncio
+from __future__ import annotations
 
 import pytest
 from tests.conftest import MockMCPSession
@@ -91,10 +90,12 @@ class TestSessionAffinity:
             pass
 
         # Now borrow the affinity session AND try to borrow another with same key
-        async with pool.session(affinity_key="sticky"):
-            async with pool.session(affinity_key="sticky") as session2:
-                # Should get a different session (fallback)
-                assert session2 is not None
+        async with (
+            pool.session(affinity_key="sticky"),
+            pool.session(affinity_key="sticky") as session2,
+        ):
+            # Should get a different session (fallback)
+            assert session2 is not None
 
         await pool.shutdown()
 

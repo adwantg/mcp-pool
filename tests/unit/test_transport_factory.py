@@ -2,16 +2,14 @@
 """
 Unit tests for transport_factory config.
 """
-from __future__ import annotations
 
-import asyncio
+from __future__ import annotations
 
 import pytest
 from tests.conftest import MockMCPSession
 
 from mcpool.config import PoolConfig
 from mcpool.pool import MCPPool
-from mcpool.session import PooledSession
 
 
 async def _mock_factory(endpoint: str, headers: dict[str, str]):
@@ -87,6 +85,7 @@ class TestTransportFactory:
         pool = MCPPool(config=cfg)
         await pool.start()
         from mcpool.errors import SessionError
+
         with pytest.raises(SessionError, match="Factory"):
             async with pool.session():
                 pass

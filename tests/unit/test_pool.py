@@ -5,6 +5,7 @@ Unit tests for MCPPool.
 Uses mock sessions to test pool lifecycle, borrow/return, graceful drain,
 and error paths without a real MCP server.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -20,6 +21,7 @@ from mcpool.pool import MCPPool
 from mcpool.session import PooledSession
 
 # ─── Helpers ───
+
 
 def _make_config(**overrides) -> PoolConfig:
     defaults = {
@@ -121,6 +123,7 @@ class TestSessionBorrowing:
         await pool.start()
 
         sessions = []
+
         # Borrow 3 sessions concurrently
         async def borrow_one(i: int):
             async with pool.session() as s:

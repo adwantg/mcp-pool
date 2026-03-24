@@ -2,6 +2,7 @@
 """
 mcpool — async connection pool for MCP client sessions.
 """
+
 from __future__ import annotations
 
 from .cache import ToolCache

@@ -2,6 +2,7 @@
 """
 Unit tests for pool.call_tool() convenience API.
 """
+
 from __future__ import annotations
 
 import pytest
@@ -60,9 +61,7 @@ class TestCallTool:
         pool._create_session = lambda: _mock_create_session(pool)  # type: ignore
 
         await pool.start()
-        result = await pool.call_tool(
-            "my_tool", headers={"X-Access-Token": "eyJ..."}
-        )
+        result = await pool.call_tool("my_tool", headers={"X-Access-Token": "eyJ..."})
         assert result is not None
         await pool.shutdown()
 

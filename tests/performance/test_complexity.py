@@ -8,6 +8,7 @@ to ensure the pool doesn't degrade at scale.
 Uses bigocheck's verify_bounds() for imperative tests and
 @assert_complexity() decorator for declarative complexity contracts.
 """
+
 from __future__ import annotations
 
 import tracemalloc
@@ -178,18 +179,20 @@ class TestDebugSnapshotTimeComplexity:
 
         def snapshot_n_sessions(n: int) -> None:
             sessions = {f"id-{i}": PooledSession(session=MockMCPSession()) for i in range(n)}
-            active = set(list(sessions.keys())[:n // 2])
+            active = set(list(sessions.keys())[: n // 2])
             result = []
             for ps in sessions.values():
                 state = "active" if ps.session_id in active else "idle"
-                result.append({
-                    "session_id": ps.session_id,
-                    "state": state,
-                    "age_s": round(ps.age_s, 2),
-                    "idle_s": round(ps.idle_s, 2),
-                    "borrow_count": ps.borrow_count,
-                    "affinity_key": ps.affinity_key,
-                })
+                result.append(
+                    {
+                        "session_id": ps.session_id,
+                        "state": state,
+                        "age_s": round(ps.age_s, 2),
+                        "idle_s": round(ps.idle_s, 2),
+                        "borrow_count": ps.borrow_count,
+                        "affinity_key": ps.affinity_key,
+                    }
+                )
 
         result = verify_bounds(snapshot_n_sessions, SMALL_SIZES, expected="O(n)", tolerance=0.8)
         assert result.passes, result.message

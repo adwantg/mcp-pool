@@ -2,6 +2,7 @@
 """
 Circuit breaker for session creation.
 """
+
 from __future__ import annotations
 
 import asyncio

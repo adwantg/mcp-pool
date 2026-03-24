@@ -2,6 +2,7 @@
 """
 Unit tests for auth_provider support.
 """
+
 from __future__ import annotations
 
 import pytest
@@ -9,7 +10,6 @@ from tests.conftest import MockMCPSession
 
 from mcpool.config import PoolConfig
 from mcpool.pool import MCPPool
-from mcpool.session import PooledSession
 
 
 def _make_config(**overrides) -> PoolConfig:

@@ -2,9 +2,8 @@
 """
 Unit tests for pool readiness: wait_ready() and is_ready.
 """
-from __future__ import annotations
 
-import asyncio
+from __future__ import annotations
 
 import pytest
 from tests.conftest import MockMCPSession

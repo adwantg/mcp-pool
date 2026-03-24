@@ -5,6 +5,7 @@ Prometheus-compatible metrics export.
 Returns pool metrics in a flat dict structure compatible with
 the ``prometheus_client`` library.
 """
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING

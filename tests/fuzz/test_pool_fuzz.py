@@ -2,6 +2,7 @@
 """
 Property-based tests for pool invariants.
 """
+
 from __future__ import annotations
 
 import asyncio

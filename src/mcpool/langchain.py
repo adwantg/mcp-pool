@@ -5,6 +5,7 @@ LangChain integration — expose MCP tools as LangChain Tool objects.
 Requires the ``mcpool[langchain]`` extra
 (``pip install "mcpool[langchain]"``).
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -72,7 +73,11 @@ def langchain_tools(pool: MCPPool) -> list[Any]:
     raw_tools: list[Any] = cached.tools if hasattr(cached, "tools") else cached
 
     for tool_def in raw_tools:
-        name: str = tool_def["name"] if isinstance(tool_def, dict) else getattr(tool_def, "name", str(tool_def))
+        name: str = (
+            tool_def["name"]
+            if isinstance(tool_def, dict)
+            else getattr(tool_def, "name", str(tool_def))
+        )
         description: str = (
             tool_def.get("description", name)
             if isinstance(tool_def, dict)

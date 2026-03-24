@@ -2,6 +2,7 @@
 """
 MCPPool — the core async connection pool for MCP client sessions.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -201,17 +202,12 @@ class MCPPool:
         if tasks:
             await asyncio.gather(*tasks, return_exceptions=True)
 
-        warmup_ok = (
-            self._config.min_sessions == 0
-            or len(self._idle) >= self._config.min_sessions
-        )
+        warmup_ok = self._config.min_sessions == 0 or len(self._idle) >= self._config.min_sessions
 
         if not warmup_ok and self._config.graceful_degradation:
             self._degraded = True
             self._metrics.degraded = True
-            logger.warning(
-                "MCPPool warmup failed — entering degraded mode (ephemeral sessions)"
-            )
+            logger.warning("MCPPool warmup failed — entering degraded mode (ephemeral sessions)")
             # Start background recovery
             self._recovery_task = asyncio.create_task(
                 self._background_recovery(), name="mcpool-recovery"
@@ -654,9 +650,7 @@ class MCPPool:
         if new_max < 1:
             raise ValueError(f"max_sessions must be >= 1, got {new_max}")
         if new_min > new_max:
-            raise ValueError(
-                f"min_sessions ({new_min}) cannot exceed max_sessions ({new_max})"
-            )
+            raise ValueError(f"min_sessions ({new_min}) cannot exceed max_sessions ({new_max})")
 
         old_max = self._config.max_sessions
 
@@ -685,8 +679,7 @@ class MCPPool:
         current = len(self._all_sessions)
         if current < new_min:
             warmup = [
-                self._create_and_add_session(reason="resize")
-                for _ in range(new_min - current)
+                self._create_and_add_session(reason="resize") for _ in range(new_min - current)
             ]
             if warmup:
                 await asyncio.gather(*warmup, return_exceptions=True)
@@ -726,14 +719,16 @@ class MCPPool:
         snapshots: list[dict[str, Any]] = []
         for ps in self._all_sessions.values():
             state = "active" if ps.session_id in self._active else "idle"
-            snapshots.append({
-                "session_id": ps.session_id,
-                "state": state,
-                "age_s": round(ps.age_s, 2),
-                "idle_s": round(ps.idle_s, 2),
-                "borrow_count": ps.borrow_count,
-                "affinity_key": ps.affinity_key,
-            })
+            snapshots.append(
+                {
+                    "session_id": ps.session_id,
+                    "state": state,
+                    "age_s": round(ps.age_s, 2),
+                    "idle_s": round(ps.idle_s, 2),
+                    "borrow_count": ps.borrow_count,
+                    "affinity_key": ps.affinity_key,
+                }
+            )
         return snapshots
 
     # ───── internal helpers ─────
@@ -840,6 +835,7 @@ class MCPPool:
         headers = await self._resolve_auth_headers()
 
         import httpx
+
         http_client = httpx.AsyncClient(headers=headers)
 
         transport_ctx = streamable_http_client(
@@ -890,9 +886,7 @@ class MCPPool:
         self._metrics.sessions_created += 1
         return ps
 
-    async def _create_ephemeral_session(
-        self, headers: dict[str, str] | None
-    ) -> PooledSession:
+    async def _create_ephemeral_session(self, headers: dict[str, str] | None) -> PooledSession:
         """Create a one-off session for degraded mode."""
         ps = await self._create_session()
         if headers:
@@ -944,9 +938,7 @@ class MCPPool:
                 self._idle.remove(ps)
             self._all_sessions.pop(ps.session_id, None)
             self._active.discard(ps.session_id)
-            self._affinity_map = {
-                k: v for k, v in self._affinity_map.items() if v != ps.session_id
-            }
+            self._affinity_map = {k: v for k, v in self._affinity_map.items() if v != ps.session_id}
             self._metrics.sessions_destroyed += 1
             self._metrics.total = len(self._all_sessions)
             self._metrics.idle = len(self._idle)
@@ -967,9 +959,7 @@ class MCPPool:
                 self._idle.remove(ps)
             self._all_sessions.pop(ps.session_id, None)
             self._active.discard(ps.session_id)
-            self._affinity_map = {
-                k: v for k, v in self._affinity_map.items() if v != ps.session_id
-            }
+            self._affinity_map = {k: v for k, v in self._affinity_map.items() if v != ps.session_id}
             self._metrics.sessions_destroyed += 1
             self._metrics.total = len(self._all_sessions)
             self._metrics.idle = len(self._idle)

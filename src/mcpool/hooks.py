@@ -2,6 +2,7 @@
 """
 Optional async event hooks for pool lifecycle events.
 """
+
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable

@@ -2,6 +2,7 @@
 """
 Background health-check task for idle sessions.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -108,9 +109,7 @@ class HealthChecker:
                     timeout=5.0,
                 )
             except Exception as exc:
-                logger.warning(
-                    "Health check failed for session %s, removing", ps.session_id
-                )
+                logger.warning("Health check failed for session %s, removing", ps.session_id)
                 self._metrics.health_check_failures += 1
                 if self._on_health_check_failed is not None:
                     await self._on_health_check_failed(ps, exc)

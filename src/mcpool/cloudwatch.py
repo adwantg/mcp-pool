@@ -5,6 +5,7 @@ Optional CloudWatch metrics publisher.
 Publishes pool metrics to AWS CloudWatch using ``boto3``.  Requires the
 ``mcpool[aws]`` extra (``pip install "mcpool[aws]"``).
 """
+
 from __future__ import annotations
 
 import logging
@@ -91,26 +92,32 @@ class CloudWatchPublisher:
         }
 
         for key, name in gauge_keys.items():
-            metric_data.append({
-                "MetricName": name,
-                "Dimensions": dims,
-                "Value": float(snap[key]),  # type: ignore[arg-type]
-                "Unit": "Count",
-            })
+            metric_data.append(
+                {
+                    "MetricName": name,
+                    "Dimensions": dims,
+                    "Value": float(snap[key]),  # type: ignore[arg-type]
+                    "Unit": "Count",
+                }
+            )
         for key, name in counter_keys.items():
-            metric_data.append({
-                "MetricName": name,
-                "Dimensions": dims,
-                "Value": float(snap[key]),  # type: ignore[arg-type]
-                "Unit": "Count",
-            })
+            metric_data.append(
+                {
+                    "MetricName": name,
+                    "Dimensions": dims,
+                    "Value": float(snap[key]),  # type: ignore[arg-type]
+                    "Unit": "Count",
+                }
+            )
         for key, (name, unit) in float_keys.items():
-            metric_data.append({
-                "MetricName": name,
-                "Dimensions": dims,
-                "Value": float(snap[key]),  # type: ignore[arg-type]
-                "Unit": unit,
-            })
+            metric_data.append(
+                {
+                    "MetricName": name,
+                    "Dimensions": dims,
+                    "Value": float(snap[key]),  # type: ignore[arg-type]
+                    "Unit": unit,
+                }
+            )
 
         # CloudWatch allows max 1000 per PutMetricData call; we have ~16.
         try:

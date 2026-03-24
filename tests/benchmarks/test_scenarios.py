@@ -2,6 +2,7 @@
 """
 Scenario benchmarks for pooled traffic patterns.
 """
+
 from __future__ import annotations
 
 import asyncio
