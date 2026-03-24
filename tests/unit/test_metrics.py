@@ -66,6 +66,11 @@ class TestPoolMetricsSnapshot:
             "errors",
             "circuit_state",
             "degraded",
+            "rate_limit_waits",
+            "rate_limit_rejects",
+            "tenant_rejects",
+            "autoscale_ups",
+            "autoscale_downs",
             "uptime_s",
         }
         assert set(snap.keys()) == expected_keys
