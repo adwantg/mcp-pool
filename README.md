@@ -38,6 +38,7 @@ Optional extras:
 pip install "mcp-pool[otel]"       # OpenTelemetry spans/metrics
 pip install "mcp-pool[aws]"        # CloudWatch metrics publishing
 pip install "mcp-pool[langchain]"  # LangChain Tool integration
+pip install "mcp-pool[oauth]"      # OAuth 2.1 with PKCE support
 pip install "mcp-pool[docs]"       # mkdocs documentation
 ```
 
@@ -89,6 +90,15 @@ async def main() -> None:
 
 asyncio.run(main())
 ```
+
+## What v0.4.0 Adds
+
+| Area | Change |
+|------|--------|
+| OAuth 2.1 | `OAuthConfig` + `OAuthProvider` with PKCE, OIDC discovery, background refresh |
+| Health Probes | `health_probe` callback replaces default `list_tools()` ping |
+| Warmup Hooks | `warmup_hook` runs custom setup after each session `initialize()` |
+| Schema Detection | Hash-based tool schema change detection with `on_schema_changed` hook |
 
 ## What v0.3.0 Adds
 
@@ -158,6 +168,9 @@ pool = MCPPool(endpoint="http://...", min_sessions=2, max_sessions=10)
 | `auth_provider` | `None` | Async callable returning token or header dict |
 | `transport_factory` | `None` | Custom transport creation callback |
 | `graceful_degradation` | `False` | Ephemeral fallback on warmup failure |
+| `oauth` | `None` | `OAuthConfig` for OAuth 2.1 (mutually exclusive with `auth_provider`) |
+| `warmup_hook` | `None` | Async callback run on each session after `initialize()` |
+| `health_probe` | `None` | Custom health check — replaces default `list_tools()` ping |
 
 ## Feature Deep-Dives
 
@@ -338,6 +351,79 @@ for info in pool.debug_snapshot():
 - `on_health_check_failed`
 - `on_circuit_open`
 - `on_circuit_close`
+- `on_schema_changed`
+
+### OAuth 2.1 Authentication
+
+```python
+from mcpool import MCPPool, PoolConfig, OAuthConfig
+
+pool = MCPPool(config=PoolConfig(
+    endpoint="https://mcp.example.com",
+    oauth=OAuthConfig(
+        client_id="my-client",
+        client_secret="my-secret",
+        token_endpoint="https://auth.example.com/token",
+        scopes=["mcp:read", "mcp:write"],
+    ),
+))
+```
+
+Or with OIDC discovery:
+
+```python
+pool = MCPPool(config=PoolConfig(
+    endpoint="https://mcp.example.com",
+    oauth=OAuthConfig(
+        client_id="my-client",
+        discovery_url="https://auth.example.com/.well-known/oauth-authorization-server",
+    ),
+))
+```
+
+### Custom Health Probes
+
+```python
+async def my_health_check(session) -> bool:
+    """Custom readiness check."""
+    try:
+        result = await session.call_tool("health_ping")
+        return result is not None
+    except Exception:
+        return False
+
+pool = MCPPool(config=PoolConfig(
+    endpoint="https://mcp.example.com",
+    health_probe=my_health_check,
+))
+```
+
+### Warmup Hooks
+
+```python
+async def warmup(session):
+    """Pre-load context after session init."""
+    await session.call_tool("load_context", {"scope": "global"})
+
+pool = MCPPool(config=PoolConfig(
+    endpoint="https://mcp.example.com",
+    warmup_hook=warmup,
+))
+```
+
+### Schema Change Detection
+
+```python
+from mcpool import MCPPool, PoolConfig, EventHooks
+
+async def on_schema_changed(payload):
+    print(f"Tool schema changed! Hash: {payload['schema_hash']}")
+    # Invalidate downstream caches, re-sync agents, etc.
+
+pool = MCPPool(config=PoolConfig(
+    endpoint="https://mcp.example.com",
+    event_hooks=EventHooks(on_schema_changed=on_schema_changed),
+))
 
 ## Metrics
 
@@ -393,7 +479,7 @@ The repository includes a mkdocs site in [`docs/`](docs/) covering:
 
 - Quickstart
 - Configuration reference
-- Migration guide for `0.1.0 -> 0.2.0 -> 0.3.0`
+- Migration guide for `0.1.0 -> 0.2.0 -> 0.3.0 -> 0.4.0`
 - Architecture
 - Deployment patterns
 - Performance tuning

@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.4.0 - 2026-03-23
+
+- Added OAuth 2.1 support with PKCE (`OAuthConfig`, `OAuthProvider`) via `mcpool[oauth]` extra.
+  - OIDC discovery, background token refresh, circuit breaker integration.
+- Added custom health probe hooks (`health_probe`, `warmup_hook`) in `PoolConfig`.
+  - Replace default `list_tools()` ping with custom readiness checks.
+  - Run per-session setup after `initialize()` via warmup hook.
+- Added tool schema change detection in `ToolCache`.
+  - Hash-based comparison detects tool additions/removals/modifications.
+  - New `on_schema_changed` event hook emitted on schema changes.
+- Added `OAuthConfig`, `OAuthProvider`, `HealthProbe`, `WarmupHook` to public API.
+
 ## 0.3.0 - 2026-03-23
 
 - Added `transport_factory` config for custom transport creation (e.g. `aws_iam_streamablehttp_client`).
