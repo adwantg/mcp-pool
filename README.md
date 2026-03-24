@@ -1,6 +1,7 @@
 # mcpool
 
 [![PyPI version](https://img.shields.io/pypi/v/mcp-pool.svg)](https://pypi.org/project/mcp-pool/)
+[![PyPI Downloads](https://static.pepy.tech/personalized-badge/mcp-pool?period=total&units=INTERNATIONAL_SYSTEM&left_color=BLACK&right_color=GREEN&left_text=downloads)](https://pepy.tech/projects/mcp-pool)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
 [![Tests](https://github.com/adwantg/mcp-pool/actions/workflows/ci.yml/badge.svg)](https://github.com/adwantg/mcp-pool/actions)
