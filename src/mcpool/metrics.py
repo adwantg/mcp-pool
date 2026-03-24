@@ -39,6 +39,11 @@ class PoolMetrics:
     errors: int = 0
     circuit_state: str = "closed"
     degraded: bool = False
+    rate_limit_waits: int = 0
+    rate_limit_rejects: int = 0
+    tenant_rejects: int = 0
+    autoscale_ups: int = 0
+    autoscale_downs: int = 0
     _start_time: float = field(default_factory=time.monotonic)
 
     @property
@@ -85,6 +90,11 @@ class PoolMetrics:
             "errors": self.errors,
             "circuit_state": self.circuit_state,
             "degraded": self.degraded,
+            "rate_limit_waits": self.rate_limit_waits,
+            "rate_limit_rejects": self.rate_limit_rejects,
+            "tenant_rejects": self.tenant_rejects,
+            "autoscale_ups": self.autoscale_ups,
+            "autoscale_downs": self.autoscale_downs,
             "uptime_s": round(self.uptime_s, 2),
         }
 
@@ -141,4 +151,9 @@ class PoolMetrics:
         self.errors = 0
         self.circuit_state = "closed"
         self.degraded = False
+        self.rate_limit_waits = 0
+        self.rate_limit_rejects = 0
+        self.tenant_rejects = 0
+        self.autoscale_ups = 0
+        self.autoscale_downs = 0
         self._start_time = time.monotonic()

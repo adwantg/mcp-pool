@@ -121,6 +121,9 @@ class MCPPool:
         self._degraded = False
         self._recovery_task: asyncio.Task[None] | None = None
         self._oauth_provider: Any | None = None  # OAuthProvider instance
+        self._rate_limiter: Any | None = None  # TokenBucketLimiter
+        self._autoscaler: Any | None = None  # AutoScaler
+        self._tenant_limiter: Any | None = None  # TenantLimiter
 
         # Readiness tracking
         self._ready_event = asyncio.Event()
@@ -214,6 +217,18 @@ class MCPPool:
             cfg_dict["oauth"] = self._config.oauth  # keep reference
             self._config = PoolConfig(**cfg_dict)
 
+        # Wire rate limiter if configured.
+        if self._config.rate_limit is not None:
+            from .rate_limiter import TokenBucketLimiter
+
+            self._rate_limiter = TokenBucketLimiter(self._config.rate_limit)
+
+        # Wire tenant limiter if configured.
+        if self._config.tenant_limiter is not None:
+            from .tenant import TenantLimiter
+
+            self._tenant_limiter = TenantLimiter(self._config.tenant_limiter)
+
         # Pre-warm sessions
         tasks = [self._create_and_add_session() for _ in range(self._config.min_sessions)]
         if tasks:
@@ -253,6 +268,13 @@ class MCPPool:
             " [DEGRADED]" if self._degraded else "",
         )
 
+        # Start autoscaler after pool is started.
+        if self._config.autoscaler is not None:
+            from .autoscaler import AutoScaler
+
+            self._autoscaler = AutoScaler(self._config.autoscaler, self)
+            self._autoscaler.start()
+
     async def wait_ready(self, *, timeout_s: float | None = None) -> bool:
         """
         Wait until the pool has warmed ``min_sessions`` and is ready.
@@ -277,6 +299,13 @@ class MCPPool:
         if self._oauth_provider is not None:
             await self._oauth_provider.stop_background_refresh()
             self._oauth_provider = None
+
+        # Stop autoscaler
+        if self._autoscaler is not None:
+            await self._autoscaler.stop()
+            self._metrics.autoscale_ups = self._autoscaler.scale_ups
+            self._metrics.autoscale_downs = self._autoscaler.scale_downs
+            self._autoscaler = None
 
         # Cancel recovery task if running
         if self._recovery_task is not None:
@@ -413,6 +442,26 @@ class MCPPool:
                 await self._close_session(ps, reason="ephemeral")
             return
 
+        # Per-tenant concurrency cap.
+        tenant_key: str | None = None
+        if self._tenant_limiter is not None:
+            tenant_key = self._tenant_limiter.resolve_tenant_key(
+                headers, affinity_key
+            )
+            if tenant_key is not None:
+                acquired_tenant = await self._tenant_limiter.acquire(tenant_key)
+                if not acquired_tenant:
+                    self._metrics.tenant_rejects += 1
+                    raise PoolExhaustedError(
+                        f"Tenant '{tenant_key}' at concurrency limit"
+                    )
+
+        # Rate limiting.
+        if self._rate_limiter is not None:
+            await self._rate_limiter.acquire()
+            self._metrics.rate_limit_waits = self._rate_limiter.wait_count
+            self._metrics.rate_limit_rejects = self._rate_limiter.reject_count
+
         wait_start = time.monotonic()
         acquired = False
         released = False
@@ -465,6 +514,8 @@ class MCPPool:
                             "idle": len(self._idle),
                         },
                     )
+                if tenant_key is not None and self._tenant_limiter is not None:
+                    self._tenant_limiter.release(tenant_key)
                 if acquired:
                     self._semaphore.release()
                     released = True

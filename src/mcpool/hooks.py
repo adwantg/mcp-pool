@@ -30,3 +30,5 @@ class EventHooks:
     on_circuit_open: EventHook | None = None
     on_circuit_close: EventHook | None = None
     on_schema_changed: EventHook | None = None
+    on_rate_limited: EventHook | None = None
+    on_autoscale: EventHook | None = None

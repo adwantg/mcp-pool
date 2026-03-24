@@ -18,10 +18,13 @@ from .errors import (
     SessionError,
 )
 from .hooks import EventHooks
+from .manager import MCPPoolManager
 from .metrics import PoolMetrics
 from .oauth import OAuthConfig, OAuthProvider
 from .pool import MCPPool
+from .rate_limiter import RateLimiterConfig, TokenBucketLimiter
 from .session import PooledSession
+from .tenant import TenantLimiter, TenantLimiterConfig
 
 __all__ = [
     "AuthProvider",
@@ -32,6 +35,7 @@ __all__ = [
     "HealthCheckError",
     "HealthProbe",
     "MCPPool",
+    "MCPPoolManager",
     "OAuthConfig",
     "OAuthProvider",
     "PoolConfig",
@@ -40,10 +44,14 @@ __all__ = [
     "PoolMetrics",
     "PoolShutdownError",
     "PooledSession",
+    "RateLimiterConfig",
     "SessionError",
+    "TenantLimiter",
+    "TenantLimiterConfig",
+    "TokenBucketLimiter",
     "ToolCache",
     "TransportFactory",
     "WarmupHook",
 ]
 
-__version__ = "0.4.0"
+__version__ = "1.0.0"

@@ -108,6 +108,9 @@ class PoolConfig:
     oauth: Any | None = None  # OAuthConfig — lazy import to avoid hard dep
     warmup_hook: WarmupHook | None = None
     health_probe: HealthProbe | None = None
+    rate_limit: Any | None = None  # RateLimiterConfig
+    autoscaler: Any | None = None  # AutoScalerConfig
+    tenant_limiter: Any | None = None  # TenantLimiterConfig
 
     @property
     def effective_borrow_timeout_s(self) -> float:
