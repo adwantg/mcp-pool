@@ -45,6 +45,7 @@ class HealthChecker:
         on_health_check_failed: (
             Callable[[PooledSession, Exception], Coroutine[Any, Any, None]] | None
         ) = None,
+        health_probe: Callable[[Any], Coroutine[Any, Any, bool]] | None = None,
     ) -> None:
         self._interval_s = interval_s
         self._get_idle = get_idle_sessions
@@ -54,6 +55,7 @@ class HealthChecker:
         self._recycle_session = recycle_session
         self._should_recycle = should_recycle
         self._on_health_check_failed = on_health_check_failed
+        self._health_probe = health_probe
         self._task: asyncio.Task[None] | None = None
         self._stopped = asyncio.Event()
 
@@ -102,12 +104,20 @@ class HealthChecker:
 
             self._metrics.health_check_count += 1
             try:
-                # Use list_tools as a lightweight ping — the result
-                # is typically cached anyway.
-                await asyncio.wait_for(
-                    ps.session.list_tools(),
-                    timeout=5.0,
-                )
+                if self._health_probe is not None:
+                    # Use custom health probe.
+                    healthy = await asyncio.wait_for(
+                        self._health_probe(ps.session),
+                        timeout=5.0,
+                    )
+                    if not healthy:
+                        raise RuntimeError("Custom health probe returned False")
+                else:
+                    # Default: use list_tools as a lightweight ping.
+                    await asyncio.wait_for(
+                        ps.session.list_tools(),
+                        timeout=5.0,
+                    )
             except Exception as exc:
                 logger.warning("Health check failed for session %s, removing", ps.session_id)
                 self._metrics.health_check_failures += 1

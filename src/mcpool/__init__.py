@@ -8,7 +8,7 @@ from __future__ import annotations
 from .cache import ToolCache
 from .circuit import CircuitBreaker
 from .cloudwatch import CloudWatchPublisher
-from .config import AuthProvider, PoolConfig, TransportFactory
+from .config import AuthProvider, HealthProbe, PoolConfig, TransportFactory, WarmupHook
 from .errors import (
     CircuitOpenError,
     HealthCheckError,
@@ -19,6 +19,7 @@ from .errors import (
 )
 from .hooks import EventHooks
 from .metrics import PoolMetrics
+from .oauth import OAuthConfig, OAuthProvider
 from .pool import MCPPool
 from .session import PooledSession
 
@@ -29,7 +30,10 @@ __all__ = [
     "CloudWatchPublisher",
     "EventHooks",
     "HealthCheckError",
+    "HealthProbe",
     "MCPPool",
+    "OAuthConfig",
+    "OAuthProvider",
     "PoolConfig",
     "PoolError",
     "PoolExhaustedError",
@@ -39,6 +43,7 @@ __all__ = [
     "SessionError",
     "ToolCache",
     "TransportFactory",
+    "WarmupHook",
 ]
 
-__version__ = "0.3.0"
+__version__ = "0.4.0"

@@ -120,6 +120,7 @@ class MCPPool:
         self._drain_event.set()  # no one in-flight initially
         self._degraded = False
         self._recovery_task: asyncio.Task[None] | None = None
+        self._oauth_provider: Any | None = None  # OAuthProvider instance
 
         # Readiness tracking
         self._ready_event = asyncio.Event()
@@ -152,6 +153,7 @@ class MCPPool:
             recycle_session=self._recycle_idle_session,
             should_recycle=self._should_recycle_session,
             on_health_check_failed=self._on_health_check_failed,
+            health_probe=self._config.health_probe,
         )
 
     # ───── properties ─────
@@ -196,6 +198,21 @@ class MCPPool:
         self._started = True
         self._shutting_down = False
         self._degraded = False
+
+        # Wire OAuth provider if configured.
+        if self._config.oauth is not None:
+            from .oauth import OAuthProvider
+
+            self._oauth_provider = OAuthProvider(self._config.oauth)
+            self._oauth_provider.start_background_refresh()
+            # Wire as the auth_provider for session creation.
+            cfg_dict = {
+                f.name: getattr(self._config, f.name)
+                for f in self._config.__dataclass_fields__.values()
+            }
+            cfg_dict["auth_provider"] = self._oauth_provider
+            cfg_dict["oauth"] = self._config.oauth  # keep reference
+            self._config = PoolConfig(**cfg_dict)
 
         # Pre-warm sessions
         tasks = [self._create_and_add_session() for _ in range(self._config.min_sessions)]
@@ -255,6 +272,11 @@ class MCPPool:
         if not self._started:
             return
         self._shutting_down = True
+
+        # Cancel OAuth background refresh
+        if self._oauth_provider is not None:
+            await self._oauth_provider.stop_background_refresh()
+            self._oauth_provider = None
 
         # Cancel recovery task if running
         if self._recovery_task is not None:
@@ -613,6 +635,15 @@ class MCPPool:
             if result.refreshed:
                 self._metrics.cache_misses += 1
                 self._metrics.cache_refresh_count += 1
+                # Detect schema changes.
+                if result.schema_changed:
+                    logger.info("Tool schema change detected")
+                    await self._emit_hook(
+                        "on_schema_changed",
+                        {
+                            "schema_hash": self._cache.schema_hash,
+                        },
+                    )
             elif result.hit:
                 self._metrics.cache_hits += 1
             return result.value
@@ -848,6 +879,10 @@ class MCPPool:
         session = await session_ctx.__aenter__()
         await session.initialize()
 
+        # Run warmup hook if configured.
+        if self._config.warmup_hook is not None:
+            await self._config.warmup_hook(session)
+
         ps = PooledSession(
             session=session,
             transport_ctx=transport_ctx,
@@ -875,6 +910,10 @@ class MCPPool:
         session_ctx = ClientSession(read_stream, write_stream)
         session = await session_ctx.__aenter__()
         await session.initialize()
+
+        # Run warmup hook if configured.
+        if self._config.warmup_hook is not None:
+            await self._config.warmup_hook(session)
 
         ps = PooledSession(
             session=session,

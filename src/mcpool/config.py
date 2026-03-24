@@ -14,6 +14,8 @@ from .hooks import EventHooks
 # Type aliases for user-supplied factories and providers.
 TransportFactory = Callable[..., Awaitable[Any]]
 AuthProvider = Callable[[], Awaitable[str | dict[str, str]]]
+WarmupHook = Callable[[Any], Awaitable[None]]
+HealthProbe = Callable[[Any], Awaitable[bool]]
 
 
 @dataclass(frozen=True)
@@ -67,6 +69,15 @@ class PoolConfig:
             ``start()`` the pool enters *degraded mode* — it creates
             ephemeral per-request sessions and retries warmup in the
             background instead of raising.
+        oauth: Optional :class:`OAuthConfig` for OAuth 2.1 token management.
+            Mutually exclusive with ``auth_provider`` — if both are set
+            a ``ValueError`` is raised.
+        warmup_hook: Optional async callback invoked on each session after
+            ``initialize()`` completes.  Use for custom server readiness
+            checks or per-session setup.
+        health_probe: Optional async callback used instead of the default
+            ``list_tools()`` ping during health checks.  Should return
+            ``True`` if the session is healthy, ``False`` otherwise.
     """
 
     endpoint: str = ""
@@ -94,6 +105,9 @@ class PoolConfig:
     event_hooks: EventHooks = field(default_factory=EventHooks)
     transport_factory: TransportFactory | None = None
     graceful_degradation: bool = False
+    oauth: Any | None = None  # OAuthConfig — lazy import to avoid hard dep
+    warmup_hook: WarmupHook | None = None
+    health_probe: HealthProbe | None = None
 
     @property
     def effective_borrow_timeout_s(self) -> float:
@@ -134,6 +148,11 @@ class PoolConfig:
             raise ValueError(f"failure_threshold must be >= 1, got {self.failure_threshold}")
         if self.recovery_timeout_s <= 0:
             raise ValueError(f"recovery_timeout_s must be > 0, got {self.recovery_timeout_s}")
+        # OAuth and auth_provider are mutually exclusive.
+        if self.oauth is not None and self.auth_provider is not None:
+            raise ValueError(
+                "oauth and auth_provider are mutually exclusive — use one or the other"
+            )
         # Endpoint validation — skip when a custom transport_factory is supplied.
         if self.transport_factory is None:
             if self.transport == "streamable_http" and not self.endpoint:

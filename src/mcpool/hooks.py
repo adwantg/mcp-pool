@@ -29,3 +29,4 @@ class EventHooks:
     on_health_check_failed: EventHook | None = None
     on_circuit_open: EventHook | None = None
     on_circuit_close: EventHook | None = None
+    on_schema_changed: EventHook | None = None
