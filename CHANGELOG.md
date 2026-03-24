@@ -1,5 +1,25 @@
 # Changelog
 
+## 1.0.0 - 2026-03-23
+
+- **Adaptive Pool Sizing** (`AutoScalerConfig`): Background auto-scaler that monitors
+  EWMA borrow wait time and utilization ratio to dynamically scale pool size up/down
+  with hysteresis cooldown.
+- **Multi-Endpoint Pool Manager** (`MCPPoolManager`): Manage multiple named pools
+  with routing strategies — `round_robin`, `failover`, `least_connections`.
+  Aggregated metrics and debug snapshots across all endpoints.
+- **Per-Tenant Concurrency Caps** (`TenantLimiterConfig`): Prevent noisy-tenant
+  starvation with per-key semaphore limits. Tenant key extracted from headers
+  or affinity key.
+- **Rate Limiting** (`RateLimiterConfig`, `TokenBucketLimiter`): Token-bucket
+  rate limiter with burst support, server throttle awareness (`report_throttled`),
+  and async-safe operation.
+- New event hooks: `on_rate_limited`, `on_autoscale`.
+- New metrics: `rate_limit_waits`, `rate_limit_rejects`, `tenant_rejects`,
+  `autoscale_ups`, `autoscale_downs`.
+- Exported: `MCPPoolManager`, `RateLimiterConfig`, `TokenBucketLimiter`,
+  `TenantLimiter`, `TenantLimiterConfig`.
+
 ## 0.4.0 - 2026-03-23
 
 - Added OAuth 2.1 support with PKCE (`OAuthConfig`, `OAuthProvider`) via `mcpool[oauth]` extra.

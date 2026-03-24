@@ -91,6 +91,15 @@ async def main() -> None:
 asyncio.run(main())
 ```
 
+## What v1.0.0 Adds
+
+| Area | Change |
+|------|--------|
+| Rate Limiting | Token-bucket rate limiter with burst support and backoff awareness |
+| Adaptive Sizing | Background auto-scaler that dynamically adjusts pool capacity based on EWMA wait time and utilization |
+| Tenant Caps | Provide QoS and prevent noisy neighbors with per-tenant concurrency limits |
+| Multi-Endpoint | `MCPPoolManager` to manage multiple named pools with failover and load balancing |
+
 ## What v0.4.0 Adds
 
 | Area | Change |
@@ -146,6 +155,22 @@ pool = MCPPool(endpoint="http://...", min_sessions=2, max_sessions=10)
 | `pool.metrics.to_prometheus()` | Return Prometheus-compatible metrics dict |
 | `pool.metrics.publish(namespace="ECC/MCPPool")` | Push metrics to CloudWatch |
 
+### `MCPPoolManager`
+
+```python
+from mcpool import MCPPoolManager
+manager = MCPPoolManager()
+```
+
+| Method | Description |
+|--------|-------------|
+| `manager.add("name", PoolConfig(...))` | Add a pool to the manager |
+| `await manager.remove("name")` | Remove and shutdown a pool |
+| `async with manager.session(strategy=...) as session:` | Borrow using `round_robin`, `failover`, or `least_connections` |
+| `await manager.call_tool("tool", args, strategy=...)` | Borrow, call, return |
+| `manager.metrics_snapshot()` | Aggregate metrics for all managed pools |
+| `await manager.start() / shutdown()` | Control lifecycle for all pools |
+
 ### `PoolConfig` Highlights
 
 | Parameter | Default | Description |
@@ -171,8 +196,96 @@ pool = MCPPool(endpoint="http://...", min_sessions=2, max_sessions=10)
 | `oauth` | `None` | `OAuthConfig` for OAuth 2.1 (mutually exclusive with `auth_provider`) |
 | `warmup_hook` | `None` | Async callback run on each session after `initialize()` |
 | `health_probe` | `None` | Custom health check — replaces default `list_tools()` ping |
+| `rate_limit` | `None` | `RateLimiterConfig` for token-bucket rate limits |
+| `autoscaler` | `None` | `AutoScalerConfig` for dynamic pool sizing |
+| `tenant_limiter` | `None` | `TenantLimiterConfig` for per-tenant concurrency caps |
 
 ## Feature Deep-Dives
+
+### Multi-Endpoint Pool Manager
+
+`MCPPoolManager` orchestrates multiple pools across backends, supporting failover, round-robin, and least-connections routing:
+
+```python
+from mcpool import MCPPoolManager, PoolConfig
+
+manager = MCPPoolManager()
+manager.add("us-east-1", PoolConfig(endpoint="https://us-east-1.example.mcp"))
+manager.add("eu-west-1", PoolConfig(endpoint="https://eu-west-1.example.mcp"))
+
+await manager.start()
+
+# Automatic proxying to the optimal endpoint:
+# fallback, round_robin, or least_connections
+result = await manager.call_tool(
+    "query", 
+    {"data": "xyz"},
+    strategy="least_connections" 
+)
+```
+
+### Rate Limiting
+
+Apply strict or burstable global rate limits to your pool via a Token Bucket algorithm. It's safe against concurrency and can optionally react to server Throttling indicators.
+
+```python
+from mcpool import MCPPool, PoolConfig, RateLimiterConfig
+
+pool = MCPPool(config=PoolConfig(
+    endpoint="https://mcp.example.com",
+    # Limit to 100 requests per second with a burst of up to 50
+    rate_limit=RateLimiterConfig(
+        requests_per_second=100.0,
+        burst_size=50,
+    )
+))
+```
+
+### Adaptive Pool Sizing (Autoscaler)
+
+Save resources by having the pool automatically `resize()` when load fluctuates.
+
+```python
+from mcpool import MCPPool, PoolConfig, AutoScalerConfig
+
+pool = MCPPool(config=PoolConfig(
+    endpoint="https://mcp.example.com",
+    min_sessions=2,
+    max_sessions=50,
+    autoscaler=AutoScalerConfig(
+        enabled=True,
+        # Scale UP if average wait time drops below this threshold
+        scale_up_threshold_ms=30.0,
+        # Scale DOWN if sessions remain idle this long
+        scale_down_idle_s=600.0,
+        # Lockout period to prevent oscillation
+        cooldown_s=30.0,
+    )
+))
+```
+
+### Per-Tenant Concurrency Caps
+
+In multi-tenant setups, prevent one noisy tenant from starving the entire pool while providing fair quality-of-service limits.
+
+```python
+from mcpool import MCPPool, PoolConfig, TenantLimiterConfig
+
+pool = MCPPool(config=PoolConfig(
+    endpoint="https://mcp.example.com",
+    tenant_limiter=TenantLimiterConfig(
+        # Never let one tenant consume more than 5 parallel sessions
+        max_concurrent_per_tenant=5,
+        # Derive tenant key from an HTTP Header...
+        tenant_key_header="X-Tenant-ID",
+        # ... or it falls back to the `affinity_key`
+    )
+))
+
+# Fast rejects if "TenantA" goes over their quota
+async with pool.session(headers={"X-Tenant-ID": "TenantA"}) as session:
+    await session.call_tool("heavy_query")
+```
 
 ### Custom Transport Factory
 
@@ -352,6 +465,8 @@ for info in pool.debug_snapshot():
 - `on_circuit_open`
 - `on_circuit_close`
 - `on_schema_changed`
+- `on_rate_limited`
+- `on_autoscale`
 
 ### OAuth 2.1 Authentication
 
@@ -452,6 +567,11 @@ pool = MCPPool(config=PoolConfig(
     "errors": 0,
     "circuit_state": "closed",
     "degraded": False,
+    "rate_limit_waits": 2,
+    "rate_limit_rejects": 0,
+    "tenant_rejects": 1,
+    "autoscale_ups": 3,
+    "autoscale_downs": 1,
     "uptime_s": 3600.5,
 }
 ```

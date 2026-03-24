@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "mcp-pool"
-version = "0.4.0"
+version = "1.0.0"
 description = "Async connection pool for Model Context Protocol (MCP) client sessions — keep sessions warm, reuse across requests, auto-reconnect on failure."
 readme = "README.md"
 requires-python = ">=3.10"
