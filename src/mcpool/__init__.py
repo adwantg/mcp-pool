@@ -6,7 +6,8 @@ from __future__ import annotations
 
 from .cache import ToolCache
 from .circuit import CircuitBreaker
-from .config import PoolConfig
+from .cloudwatch import CloudWatchPublisher
+from .config import AuthProvider, PoolConfig, TransportFactory
 from .errors import (
     CircuitOpenError,
     HealthCheckError,
@@ -21,8 +22,10 @@ from .pool import MCPPool
 from .session import PooledSession
 
 __all__ = [
+    "AuthProvider",
     "CircuitBreaker",
     "CircuitOpenError",
+    "CloudWatchPublisher",
     "EventHooks",
     "HealthCheckError",
     "MCPPool",
@@ -34,6 +37,7 @@ __all__ = [
     "PooledSession",
     "SessionError",
     "ToolCache",
+    "TransportFactory",
 ]
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"

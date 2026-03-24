@@ -4,10 +4,15 @@ Pool configuration.
 """
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
-from typing import Literal
+from typing import Any, Literal
 
 from .hooks import EventHooks
+
+# Type aliases for user-supplied factories and providers.
+TransportFactory = Callable[..., Awaitable[Any]]
+AuthProvider = Callable[[], Awaitable[str | dict[str, str]]]
 
 
 @dataclass(frozen=True)
@@ -32,7 +37,11 @@ class PoolConfig:
         borrow_timeout_s: Timeout for waiting on pool capacity.
             ``None`` defaults to ``connect_timeout_s``.
         drain_timeout_s: Max wait for in-flight calls during shutdown.
-        auth: Optional authentication token or API key.
+        auth: Optional static authentication token or API key.
+        auth_provider: Async callable returning a token string or header
+            dict.  Called on every session creation to support dynamic /
+            rotating credentials (e.g. SigV4, IAM, OAuth).  Mutually
+            exclusive with ``auth`` — if both are set ``auth_provider`` wins.
         mcp_headers: Extra headers sent on every MCP request.
         stdio_args: Arguments for stdio transport command.
         stdio_env: Environment variables for stdio transport.
@@ -45,6 +54,18 @@ class PoolConfig:
         enable_opentelemetry: Enable OpenTelemetry spans/metrics when the optional
             dependency is installed.
         event_hooks: Optional async lifecycle callbacks.
+        transport_factory: User-supplied async callable that creates a
+            custom transport + session, bypassing the built-in HTTP / stdio
+            logic.  Signature::
+
+                async def my_factory(endpoint: str, headers: dict[str, str])
+                    -> tuple[read_stream, write_stream, transport_ctx, session_ctx, session]
+
+            When set, ``transport`` is ignored.
+        graceful_degradation: When ``True``, if pool warmup fails at
+            ``start()`` the pool enters *degraded mode* — it creates
+            ephemeral per-request sessions and retries warmup in the
+            background instead of raising.
     """
 
     endpoint: str = ""
@@ -59,6 +80,7 @@ class PoolConfig:
     borrow_timeout_s: float | None = None
     drain_timeout_s: float = 30.0
     auth: str | None = None
+    auth_provider: AuthProvider | None = None
     mcp_headers: dict[str, str] = field(default_factory=dict)
     stdio_args: list[str] = field(default_factory=list)
     stdio_env: dict[str, str] | None = None
@@ -69,6 +91,8 @@ class PoolConfig:
     recovery_timeout_s: float = 30.0
     enable_opentelemetry: bool = False
     event_hooks: EventHooks = field(default_factory=EventHooks)
+    transport_factory: TransportFactory | None = None
+    graceful_degradation: bool = False
 
     @property
     def effective_borrow_timeout_s(self) -> float:
@@ -115,7 +139,9 @@ class PoolConfig:
             raise ValueError(
                 f"recovery_timeout_s must be > 0, got {self.recovery_timeout_s}"
             )
-        if self.transport == "streamable_http" and not self.endpoint:
-            raise ValueError("endpoint is required for streamable_http transport")
-        if self.transport == "stdio" and not self.endpoint:
-            raise ValueError("endpoint (command) is required for stdio transport")
+        # Endpoint validation — skip when a custom transport_factory is supplied.
+        if self.transport_factory is None:
+            if self.transport == "streamable_http" and not self.endpoint:
+                raise ValueError("endpoint is required for streamable_http transport")
+            if self.transport == "stdio" and not self.endpoint:
+                raise ValueError("endpoint (command) is required for stdio transport")

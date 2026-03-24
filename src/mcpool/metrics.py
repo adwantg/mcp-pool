@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass, field
+from typing import Any
 
 
 @dataclass
@@ -36,6 +37,7 @@ class PoolMetrics:
     sessions_destroyed: int = 0
     errors: int = 0
     circuit_state: str = "closed"
+    degraded: bool = False
     _start_time: float = field(default_factory=time.monotonic)
 
     @property
@@ -81,8 +83,40 @@ class PoolMetrics:
             "sessions_destroyed": self.sessions_destroyed,
             "errors": self.errors,
             "circuit_state": self.circuit_state,
+            "degraded": self.degraded,
             "uptime_s": round(self.uptime_s, 2),
         }
+
+    def to_prometheus(self) -> dict[str, Any]:
+        """
+        Return metrics in Prometheus-compatible format.
+
+        See :mod:`mcpool.prometheus` for details.
+        """
+        from .prometheus import to_prometheus
+
+        return to_prometheus(self)
+
+    def publish(
+        self,
+        *,
+        namespace: str = "MCPPool",
+        dimensions: dict[str, str] | None = None,
+        region_name: str | None = None,
+    ) -> None:
+        """
+        Publish metrics to AWS CloudWatch.
+
+        Requires ``boto3`` — install with ``pip install "mcpool[aws]"``.
+        """
+        from .cloudwatch import CloudWatchPublisher
+
+        publisher = CloudWatchPublisher(
+            namespace=namespace,
+            dimensions=dimensions,
+            region_name=region_name,
+        )
+        publisher.publish(self)
 
     def reset(self) -> None:
         """Reset all counters to zero."""
@@ -105,4 +139,5 @@ class PoolMetrics:
         self.sessions_destroyed = 0
         self.errors = 0
         self.circuit_state = "closed"
+        self.degraded = False
         self._start_time = time.monotonic()

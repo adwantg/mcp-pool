@@ -27,6 +27,7 @@ class PooledSession:
         transport_ctx: The outer transport context manager (for cleanup).
         session_ctx: The inner session context manager (for cleanup).
         extra_headers: Per-request headers injected on the next call.
+        affinity_key: Optional affinity key this session is bound to.
     """
 
     session: Any  # mcp.ClientSession — kept as Any to avoid hard import at dataclass level
@@ -39,6 +40,7 @@ class PooledSession:
     _read_stream: Any = None
     _write_stream: Any = None
     extra_headers: dict[str, str] = field(default_factory=dict)
+    affinity_key: str | None = None
 
     @property
     def age_s(self) -> float:
